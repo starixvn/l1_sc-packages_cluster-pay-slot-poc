@@ -5,6 +5,7 @@ class Prize {
         this.position = [];
         this.winScore = 0;
         this.multi = 1;
+        this.odds = 0;
     }
 }
 

@@ -9,7 +9,7 @@ import Prize from "./Prize.js";
 import Statistician from "./Statistician.js";
 
 class Main {
-    static totalRounds = 100_000_000;
+    static totalRounds = 1_000_000;
     static theoreticalRTP = 0.97;
     static gridSize = 6;
     static singleGridMaxMulti = 20;
@@ -24,6 +24,7 @@ class Main {
         Main.stat = new Statistician();
         for (let r = 0; r < Main.totalRounds; r++) {
             Main.wallet--;
+            const baseBet = 1;
             const ngResult = new NgResult();
             ngResult.category = "Ng";
             ngResult.reelSetIndex = Math.floor(
@@ -35,35 +36,63 @@ class Main {
             );
             Main.genGrid(NgReels.reels[ngResult.reelSetIndex], ngResult);
             ngResult.gridMulti = Main.iniGridMulti();
-
-            // printGrid(ngResult.reels);
-
+            //const initialReels = ngResult.reels.map((row) => row.map((grid) => grid.symbol));
+            const tumbles = [];
             let prizeList = [];
             Main.calcPrize(ngResult, prizeList);
-            ngResult.winScore += Main.calcPayout(prizeList);
-            ngResult.rageCounter += Main.calcRageMeter(prizeList);
-            Main.updateFeatureTrigger(ngResult);
+
             while (prizeList.length > 0 && ngResult.winScore < Main.maxPayout) {
                 Main.stat.ngCascadeFreq++;
+                const totalPayout = Main.calcPayout(prizeList);
+                ngResult.winScore += totalPayout;
+                ngResult.rageCounter += Main.calcRageMeter(prizeList);
+                Main.updateFeatureTrigger(ngResult);
                 Main.markDetonated(ngResult, prizeList);
                 Main.detonateAndCascadeGrid(ngResult);
+
+                tumbles.push(
+                    Main.recordTumble({
+                        ngResult,
+                        prizeList,
+                        baseBet,
+                        totalPayout,
+                    })
+                );
+
                 Main.renewGrid(ngResult.reels);
-                prizeList = [];
+                prizeList.length = 0;
                 Main.calcPrize(ngResult, prizeList);
+
                 while (prizeList.length === 0 && !ngResult.isQueueEmpty()) {
                     // Process Rage Meter
-                    Main.processRageMeter(ngResult);
+                    const { feature, triggeredPositions } =
+                        Main.processRageMeter(ngResult);
+
+                    tumbles.push(
+                        Main.recordTumble({
+                            ngResult,
+                            prizeList,
+                            baseBet,
+                            totalPayout: 0,
+                            triggeredStage: feature,
+                            triggeredPositions,
+                        })
+                    );
+
                     Main.renewGrid(ngResult.reels);
                     Main.calcPrize(ngResult, prizeList);
                 }
-                ngResult.winScore += Main.calcPayout(prizeList);
-                ngResult.rageCounter += Main.calcRageMeter(prizeList);
-                Main.updateFeatureTrigger(ngResult);
             }
-            Main.currScNumber = Main.countSC(ngResult.reels);
-            if (Main.currScNumber > 6) {
-                Main.currScNumber = 6;
-            }
+
+            const freeSpins = {
+                count: 0,
+                odds: 0,
+            };
+
+            freeSpins.count = Main.countSC(ngResult.reels);
+            Main.currScNumber = Math.min(freeSpins.count, 6);
+            freeSpins.odds = Config.fgRoundsArray[Main.currScNumber];
+
             if (ngResult.winScore > 0) {
                 Main.stat.ngHitFreq++;
             }
@@ -178,6 +207,76 @@ class Main {
         Main.printResult();
     }
 
+    static recordTumble({
+        ngResult,
+        prizeList,
+        baseBet,
+        totalPayout,
+        triggeredStage,
+        triggeredPositions,
+    }) {
+        return {
+            reels: ngResult.reels.map((row) => row.map((grid) => grid.symbol)),
+            reelMultipliers: ngResult.gridMulti.map((row) =>
+                row.map((multi) => Math.max(multi * 2, this.singleGridMaxMulti))
+            ),
+            symbols: prizeList.map((prize) => ({
+                symbol: prize.symbol,
+                position: prize.position.map((position) => ({
+                    x: position.x,
+                    y: position.y,
+                })),
+                count: prize.link,
+                multiplier: prize.multi,
+                odds: prize.odds,
+                win: prize.winScore * baseBet,
+            })),
+            win: totalPayout * baseBet,
+            rageMeter: ngResult.rageCounter,
+            rageStages: [...ngResult.featureTriggered],
+            triggeredStage,
+            triggeredPositions,
+        };
+    }
+
+    static genNormalGame() {
+        const ngResult = new NgResult();
+        ngResult.category = "Ng";
+        ngResult.reelSetIndex = Math.floor(
+            Main.genSymbolByWeights(
+                NgReels.reelsIndex,
+                NgReels.weightSum,
+                NgReels.weight
+            )
+        );
+        Main.genGrid(NgReels.reels[ngResult.reelSetIndex], ngResult);
+        ngResult.gridMulti = Main.iniGridMulti();
+
+        let prizeList = [];
+        Main.calcPrize(ngResult, prizeList);
+        ngResult.winScore += Main.calcPayout(prizeList);
+        ngResult.rageCounter += Main.calcRageMeter(prizeList);
+        Main.updateFeatureTrigger(ngResult);
+        while (prizeList.length > 0 && ngResult.winScore < Main.maxPayout) {
+            Main.stat.ngCascadeFreq++;
+            Main.markDetonated(ngResult, prizeList);
+            Main.detonateAndCascadeGrid(ngResult);
+            Main.renewGrid(ngResult.reels);
+            prizeList = [];
+            Main.calcPrize(ngResult, prizeList);
+            while (prizeList.length === 0 && !ngResult.isQueueEmpty()) {
+                // Process Rage Meter
+                Main.processRageMeter(ngResult);
+                Main.renewGrid(ngResult.reels);
+                Main.calcPrize(ngResult, prizeList);
+            }
+            ngResult.winScore += Main.calcPayout(prizeList);
+            ngResult.rageCounter += Main.calcRageMeter(prizeList);
+            Main.updateFeatureTrigger(ngResult);
+        }
+        Main.currScNumber = Main.countSC(ngResult.reels);
+    }
+
     static countSC(reels) {
         let result = 0;
         for (let i = 0; i < Main.gridSize; i++) {
@@ -205,15 +304,18 @@ class Main {
     static processRageMeter(result) {
         if (!result.isQueueEmpty()) {
             const feature = result.pollFromQueue();
+            let triggeredPositions;
             if (feature === 0) {
-                Main.processStage0(result);
+                triggeredPositions = Main.processStage0(result);
             } else if (feature === 1) {
-                Main.processStage1(result);
+                triggeredPositions = Main.processStage1(result);
             } else if (feature === 2) {
-                Main.processStage2(result);
+                triggeredPositions = Main.processStage2(result);
             } else if (feature === 3) {
                 Main.processStage3(result);
             }
+
+            return { feature, triggeredPositions };
         }
     } // Checked
 
@@ -224,6 +326,7 @@ class Main {
             Main.stat.fgRageMeterFreq[3]++;
         }
         // Remove small symbols
+        const detonatedPositions = [];
         for (let i = 0; i < Main.gridSize; i++) {
             for (let j = 0; j < Main.gridSize; j++) {
                 if (
@@ -232,10 +335,12 @@ class Main {
                 ) {
                     result.reels[i][j].isDetonated = true;
                     result.gridMulti[i][j]++;
+                    detonatedPositions.push(new Coordinate(i, j));
                 }
             }
         }
         Main.detonateAndCascadeGrid(result);
+        return detonatedPositions;
     } // Checked
 
     static processStage2(result) {
@@ -246,6 +351,7 @@ class Main {
         }
 
         // Rand select 2 col to remove
+        const detonatedPositions = [];
         const colIndex = [0, 1, 2, 3, 4, 5];
         Main.shuffleArr(colIndex);
         const col1 = colIndex[0];
@@ -255,13 +361,16 @@ class Main {
             result.gridMulti[col1][j]++;
             if (result.reels[col1][j].symbol !== Config.SC) {
                 result.reels[col1][j].isDetonated = true;
+                detonatedPositions.push(new Coordinate(col1, j));
             }
             result.gridMulti[col2][j]++;
             if (result.reels[col2][j].symbol !== Config.SC) {
                 result.reels[col2][j].isDetonated = true;
+                detonatedPositions.push(new Coordinate(col2, j));
             }
         }
         Main.detonateAndCascadeGrid(result);
+        return detonatedPositions;
     } // Checked
 
     static processStage1(result) {
@@ -271,17 +380,20 @@ class Main {
             Main.stat.fgRageMeterFreq[1]++;
         }
         // remove 3 x 3 (excl. SC)
+        const detonatedPositions = [];
         const x = Math.floor(Math.random() * (Main.gridSize - 2));
         const y = Math.floor(Math.random() * (Main.gridSize - 2));
-        for (let i = x; i < x + 3; i++) {
-            for (let j = y; j < y + 3; j++) {
+        for (let i = x; i < 3; i++) {
+            for (let j = y; j < 3; j++) {
                 result.gridMulti[i][j]++;
                 if (result.reels[i][j].symbol !== Config.SC) {
                     result.reels[i][j].isDetonated = true;
+                    detonatedPositions.push(new Coordinate(i, j));
                 }
             }
         }
         Main.detonateAndCascadeGrid(result);
+        return detonatedPositions;
     } // Checked
 
     static processStage0(result) {
@@ -291,6 +403,7 @@ class Main {
             Main.stat.fgRageMeterFreq[0]++;
         }
         // randomly remove 6 symbols (excl. SC)
+        const detonatedPositions = [];
         for (let i = 0; i < 6; i++) {
             let x = Math.floor(Math.random() * Main.gridSize);
             let y = Math.floor(Math.random() * Main.gridSize);
@@ -300,8 +413,10 @@ class Main {
             }
             result.reels[x][y].isDetonated = true;
             result.gridMulti[x][y]++;
+            detonatedPositions.push(new Coordinate(x, y));
         }
         Main.detonateAndCascadeGrid(result);
+        return detonatedPositions;
     } // Checked
 
     static calcRageMeter(prizeList) {
@@ -438,9 +553,12 @@ class Main {
         let result = 0.0;
         for (let i = 0; i < prizeList.length; i++) {
             if (prizeList[i].link >= 15) {
+                prizeList[i].odds = Config.payout[prizeList[i].symbol][15];
                 prizeList[i].winScore =
                     Config.payout[prizeList[i].symbol][15] * prizeList[i].multi;
             } else {
+                prizeList[i].odds =
+                    Config.payout[prizeList[i].symbol][prizeList[i].link];
                 prizeList[i].winScore =
                     Config.payout[prizeList[i].symbol][prizeList[i].link] *
                     prizeList[i].multi;
@@ -617,8 +735,4 @@ class Main {
 }
 
 // Run the main function
-if (import.meta.url === `file://${process.argv[1]}`) {
-    Main.main();
-}
-
-export default Main;
+Main.main();
