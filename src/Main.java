@@ -245,8 +245,8 @@ public class Main {
         // remove 3 x 3 (excl. SC)
         int x = random.nextInt(gridSize - 2);
         int y = random.nextInt(gridSize - 2);
-        for (int i = x; i < 3; i++) {
-            for (int j = y; j < 3; j++) {
+        for (int i = x; i < x + 3; i++) {
+            for (int j = y; j < y + 3; j++) {
                 result.gridMulti[x][y]++;
                 if (result.reels.get(x).get(y).symbol != Config.SC) {
                     result.reels.get(x).get(y).isDetonated = true;

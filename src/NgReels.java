@@ -1,6 +1,6 @@
 public class NgReels {
     public static int[] reelsIndex = {0, 1, 2};
-    public static final double[] weight = {40, 10, 52};
+    public static final double[] weight = {32, 11, 60};
     public static double weightSum = sumArray(weight);
     public static final int[][][] reels = {
             {
