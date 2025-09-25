@@ -17,6 +17,7 @@ public class Main {
     public static Statistician stat;
     public static Random random = new Random();
     public static int currScNumber;
+    public static int maxRageCounter = 80;
 
 
     public static void main(String[] args) {
@@ -60,6 +61,9 @@ public class Main {
             if (ngResult.winScore > 0) {
                 stat.ngHitFreq++;
             }
+            if (ngResult.winScore > maxPayout) {
+                ngResult.winScore = maxPayout;
+            }
 
 
             // FG
@@ -70,7 +74,7 @@ public class Main {
             if (fgRounds > 0) {
                 stat.fgTriggerFreq++;
                 fgResult.gridMulti = iniGridMulti();
-                while (fgRounds > 0 && fgWin + ngResult.winScore < maxPayout) {
+                while (fgRounds > 0 && fgWin < maxPayout) {
                     fgResult.reels.clear();
                     fgResult.reelSetIndex = (int) genSymbolByWeights(FgReels.reelsIndex, FgReels.weightSum, FgReels.weight);
                     genGrid(FgReels.reels[fgResult.reelSetIndex], fgResult);
@@ -97,13 +101,6 @@ public class Main {
                         updateFeatureTrigger(fgResult);
                     }
 
-                    // Renew Rage meter
-                    if (fgResult.rageCounter >= 80) {
-                        fgResult.rageCounter = 0;
-                        fgResult.featureTriggered = new boolean[]{false, false, false, false};
-                    }
-
-
                     if (fgResult.winScore > 0) {
                         stat.fgHitFreq++;
                         fgWin += fgResult.winScore;
@@ -119,16 +116,13 @@ public class Main {
                     fgRounds += Config.fgRoundsArray[currScNumber];
                     fgRounds--;
                 }
-                if (fgWin + ngResult.winScore > maxPayout) {
-                    fgWin = maxPayout - ngResult.winScore;
-                }
 
                 logPrize(fgWin, stat.fgPrizeDist);
             }
 
 
-            if (ngResult.winScore > maxPayout) {
-                ngResult.winScore = maxPayout;
+            if (fgResult.winScore > maxPayout) {
+                fgResult.winScore = maxPayout;
             }
 
             // Round end
@@ -168,12 +162,32 @@ public class Main {
     } // Checked
 
     private static void updateFeatureTrigger(Result result) {
-        for (int i = 0; i < Config.featureRageMeterRequire.length; i++) {
-            if (result.rageCounter >= Config.featureRageMeterRequire[i] && !result.featureTriggered[i]) {
-                result.featureQueue.offer(i);
-                result.featureTriggered[i] = true;
+        try {
+            int numberOfMaxRageCounter = result.rageCounter / maxRageCounter;
+            int remainingRageCounter = result.rageCounter % maxRageCounter;
+            if (numberOfMaxRageCounter > 0) {
+                for (int j = 0; j < Config.featureRageMeterRequire.length; j++) {
+                    result.featureTriggered[j] = false;
+                }
             }
+            for (int i = 0; i < numberOfMaxRageCounter; i++) {
+                for (int j = 0; j < Config.featureRageMeterRequire.length; j++) {
+                    result.featureQueue.offer(j);
+                }
+            }
+            for (int i = 0; i < Config.featureRageMeterRequire.length; i++) {
+                if (remainingRageCounter >= Config.featureRageMeterRequire[i] && !result.featureTriggered[i]) {
+                    result.featureQueue.offer(i);
+                    result.featureTriggered[i] = true;
+                }
+            }
+            result.rageCounter = remainingRageCounter;
         }
+        catch (Exception e) {
+            System.out.println(result.rageCounter);
+            throw e;
+        }
+        
     } // Checked
 
     private static void processRageMeter(Result result) {
