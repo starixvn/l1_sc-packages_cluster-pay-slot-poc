@@ -8,4 +8,6 @@ public class Grid {
         this.used = false;
         this.isDetonated = false;
     }
+
+
 }

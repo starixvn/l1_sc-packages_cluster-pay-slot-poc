@@ -7,17 +7,15 @@ import static java.lang.Math.pow;
 
 
 public class Main {
-    public static int totalRounds = 100_000_000;
+    public static int totalRounds = 10_000_000;
     public static double theoreticalRTP = 0.97;
-    public static int gridSize = 6;
-    private static final int singleGridMaxMulti = 20;
-    private static final int maxPayout = 10000;
     public static double wallet = 100;
     public static double cashOutFreq = 0;
     public static Statistician stat;
     public static Random random = new Random();
     public static int currScNumber;
-
+    public static double nearlyWinFreq = 0;
+    public static double ngNoWinFreq = 0;
 
     public static void main(String[] args) {
         stat = new Statistician();
@@ -28,20 +26,25 @@ public class Main {
             ngResult.reelSetIndex = (int) genSymbolByWeights(NgReels.reelsIndex, NgReels.weightSum, NgReels.weight);
             genGrid(NgReels.reels[ngResult.reelSetIndex], ngResult);
             ngResult.gridMulti = iniGridMulti();
-
             //            printGrid(ngResult.reels);
-
             ArrayList<Prize> prizeList = new ArrayList<>();
             calcPrize(ngResult, prizeList);
             ngResult.winScore += calcPayout(prizeList);
             ngResult.rageCounter += calcRageMeter(prizeList);
-            updateFeatureTrigger(ngResult);
-            while (!prizeList.isEmpty() && ngResult.winScore < maxPayout) {
+            updateNgFeatureTrigger(ngResult);
+
+            if (prizeList.isEmpty()) {
+                ngNoWinFreq++;
+            }
+            if (ngResult.nearlyWin && prizeList.isEmpty()) {
+                nearlyWinFreq++;
+            }
+            while (!prizeList.isEmpty() && ngResult.winScore < Config.maxSingleRoundsPayout) {
                 stat.ngCascadeFreq++;
                 markDetonated(ngResult, prizeList);
                 detonateAndCascadeGrid(ngResult);
                 renewGrid(ngResult.reels);
-                prizeList = new ArrayList<>();
+                prizeList.clear();
                 calcPrize(ngResult, prizeList);
                 while (prizeList.isEmpty() && !ngResult.featureQueue.isEmpty()) {
                     // Process Rage Meter
@@ -51,8 +54,9 @@ public class Main {
                 }
                 ngResult.winScore += calcPayout(prizeList);
                 ngResult.rageCounter += calcRageMeter(prizeList);
-                updateFeatureTrigger(ngResult);
+                updateNgFeatureTrigger(ngResult);
             }
+
             currScNumber = countSC(ngResult.reels);
             if (currScNumber > 6) {
                 currScNumber = 6;
@@ -60,7 +64,9 @@ public class Main {
             if (ngResult.winScore > 0) {
                 stat.ngHitFreq++;
             }
-
+            if (ngResult.winScore > Config.maxSingleRoundsPayout) {
+                ngResult.winScore = Config.maxSingleRoundsPayout;
+            }
 
             // FG
             double fgWin = 0;
@@ -70,21 +76,28 @@ public class Main {
             if (fgRounds > 0) {
                 stat.fgTriggerFreq++;
                 fgResult.gridMulti = iniGridMulti();
-                while (fgRounds > 0 && fgWin + ngResult.winScore < maxPayout) {
+                while (fgRounds > 0) {
                     fgResult.reels.clear();
                     fgResult.reelSetIndex = (int) genSymbolByWeights(FgReels.reelsIndex, FgReels.weightSum, FgReels.weight);
                     genGrid(FgReels.reels[fgResult.reelSetIndex], fgResult);
-                    prizeList = new ArrayList<>();
+                    prizeList.clear();
                     calcPrize(fgResult, prizeList);
+                    while (prizeList.isEmpty() && !fgResult.featureQueue.isEmpty()) {
+                        // in case the feature is halt last spin because of over 10,000x
+                        // Process Rage Meter
+                        processRageMeter(fgResult);//
+                        renewGrid(fgResult.reels);
+                        calcPrize(fgResult, prizeList);
+                    }
                     fgResult.winScore += calcPayout(prizeList);
                     fgResult.rageCounter += calcRageMeter(prizeList);
-                    updateFeatureTrigger(fgResult);
-                    while (!prizeList.isEmpty()) {
+                    updateFgFeatureTrigger(fgResult);
+                    while (!prizeList.isEmpty() && fgResult.winScore < Config.maxSingleRoundsPayout) {
                         stat.fgCascadeFreq++;
                         markDetonated(fgResult, prizeList);
                         detonateAndCascadeGrid(fgResult);
                         renewGrid(fgResult.reels);
-                        prizeList = new ArrayList<>();
+                        prizeList.clear();
                         calcPrize(fgResult, prizeList);
                         while (prizeList.isEmpty() && !fgResult.featureQueue.isEmpty()) {
                             // Process Rage Meter
@@ -94,15 +107,12 @@ public class Main {
                         }
                         fgResult.winScore += calcPayout(prizeList);
                         fgResult.rageCounter += calcRageMeter(prizeList);
-                        updateFeatureTrigger(fgResult);
+                        updateFgFeatureTrigger(fgResult);
                     }
 
-                    // Renew Rage meter
-                    if (fgResult.rageCounter >= 80) {
-                        fgResult.rageCounter = 0;
-                        fgResult.featureTriggered = new boolean[]{false, false, false, false};
+                    if (fgResult.winScore > Config.maxSingleRoundsPayout) {
+                        fgResult.winScore = Config.maxSingleRoundsPayout;
                     }
-
 
                     if (fgResult.winScore > 0) {
                         stat.fgHitFreq++;
@@ -114,21 +124,16 @@ public class Main {
                     if (currScNumber > 6) {
                         currScNumber = 6;
                     }
-
                     // retrigger FG
                     fgRounds += Config.fgRoundsArray[currScNumber];
                     fgRounds--;
                 }
-                if (fgWin + ngResult.winScore > maxPayout) {
-                    fgWin = maxPayout - ngResult.winScore;
-                }
-
                 logPrize(fgWin, stat.fgPrizeDist);
             }
 
 
-            if (ngResult.winScore > maxPayout) {
-                ngResult.winScore = maxPayout;
+            if (ngResult.winScore > Config.maxSingleRoundsPayout) {
+                ngResult.winScore = Config.maxSingleRoundsPayout;
             }
 
             // Round end
@@ -144,7 +149,7 @@ public class Main {
             stat.fgTotalWin += fgWin;
             stat.totalWin += (ngResult.winScore + fgWin);
             wallet += (ngResult.winScore + fgWin);
-            if(wallet <= 0 || wallet > 250){
+            if (wallet <= 0 || wallet > 250) {
                 wallet = 100;
                 cashOutFreq++;
             }
@@ -157,8 +162,8 @@ public class Main {
 
     private static int countSC(ArrayList<ArrayList<Grid>> reels) {
         int result = 0;
-        for (int i = 0; i < gridSize; i++) {
-            for (int j = 0; j < gridSize; j++) {
+        for (int i = 0; i < Config.gridSize; i++) {
+            for (int j = 0; j < Config.gridSize; j++) {
                 if (reels.get(i).get(j).symbol == Config.SC) {
                     result++;
                 }
@@ -167,11 +172,34 @@ public class Main {
         return result;
     } // Checked
 
-    private static void updateFeatureTrigger(Result result) {
-        for (int i = 0; i < Config.featureRageMeterRequire.length; i++) {
-            if (result.rageCounter >= Config.featureRageMeterRequire[i] && !result.featureTriggered[i]) {
-                result.featureQueue.offer(i);
-                result.featureTriggered[i] = true;
+    private static void updateNgFeatureTrigger(Result result) {
+        while(result.rageMeterLevel < 4 && result.rageCounter >= Config.featureRageMeterRequire[result.rageMeterLevel]){
+            result.featureQueue.offer(result.rageMeterLevel);
+            result.rageMeterLevel++;
+            if(result.rageMeterLevel == 4){
+                break;
+            }
+        }
+        // won't reset
+    } // Checked
+
+    private static void updateFgFeatureTrigger(Result result) {
+        while(result.rageCounter >= Config.featureRageMeterRequire[result.rageMeterLevel]){
+            result.featureQueue.offer(result.rageMeterLevel);
+            result.rageMeterLevel++;
+            if(result.rageMeterLevel == 4){
+                break;
+            }
+        }
+
+        // Reset
+        if(result.rageMeterLevel == 4){
+            result.rageCounter -= Config.featureRageMeterRequire[3];
+            result.rageMeterLevel = 0;
+            while(result.rageCounter >= Config.featureRageMeterRequire[result.rageMeterLevel]){
+                result.featureQueue.offer(result.rageMeterLevel);
+                result.rageMeterLevel++;
+                // rageMeter increase max 36 per spin, impossible to reach 80/80 twice.
             }
         }
     } // Checked
@@ -198,8 +226,8 @@ public class Main {
             stat.fgRageMeterFreq[3]++;
         }
         // 去除小symbol
-        for (int i = 0; i < gridSize; i++) {
-            for (int j = 0; j < gridSize; j++) {
+        for (int i = 0; i < Config.gridSize; i++) {
+            for (int j = 0; j < Config.gridSize; j++) {
                 if (result.reels.get(i).get(j).symbol >= 5 && result.reels.get(i).get(j).symbol <= 8) {
                     result.reels.get(i).get(j).isDetonated = true;
                     result.gridMulti[i][j]++;
@@ -222,8 +250,7 @@ public class Main {
         int col1 = colIndex[0];
         int col2 = colIndex[1];
 
-
-        for (int j = 0; j < gridSize; j++) {
+        for (int j = 0; j < Config.gridSize; j++) {
             result.gridMulti[col1][j]++;
             if (result.reels.get(col1).get(j).symbol != Config.SC) {
                 result.reels.get(col1).get(j).isDetonated = true;
@@ -243,10 +270,10 @@ public class Main {
             stat.fgRageMeterFreq[1]++;
         }
         // remove 3 x 3 (excl. SC)
-        int x = random.nextInt(gridSize - 2);
-        int y = random.nextInt(gridSize - 2);
-        for (int i = x; i < 3; i++) {
-            for (int j = y; j < 3; j++) {
+        int x = random.nextInt(Config.gridSize - 2);
+        int y = random.nextInt(Config.gridSize - 2);
+        for (int i = x; i < x + 3; i++) {
+            for (int j = y; j < y + 3; j++) {
                 result.gridMulti[x][y]++;
                 if (result.reels.get(x).get(y).symbol != Config.SC) {
                     result.reels.get(x).get(y).isDetonated = true;
@@ -264,11 +291,11 @@ public class Main {
         }
         // randomly remove 6 symbols (excl. SC)
         for (int i = 0; i < 6; i++) {
-            int x = random.nextInt(gridSize);
-            int y = random.nextInt(gridSize);
+            int x = random.nextInt(Config.gridSize);
+            int y = random.nextInt(Config.gridSize);
             while (result.reels.get(x).get(y).symbol == Config.SC) {
-                x = random.nextInt(gridSize);
-                y = random.nextInt(gridSize);
+                x = random.nextInt(Config.gridSize);
+                y = random.nextInt(Config.gridSize);
             }
             result.reels.get(x).get(y).isDetonated = true;
             result.gridMulti[x][y]++;
@@ -285,8 +312,8 @@ public class Main {
     } // Checked
 
     private static void renewGrid(ArrayList<ArrayList<Grid>> reels) {
-        for (int i = 0; i < gridSize; i++) {
-            for (int j = 0; j < gridSize; j++) {
+        for (int i = 0; i < Config.gridSize; i++) {
+            for (int j = 0; j < Config.gridSize; j++) {
                 reels.get(i).get(j).used = false;
             }
         }
@@ -305,8 +332,8 @@ public class Main {
 
     private static void detonateAndCascadeGrid(Result result) {
         // 1. Detonate
-        for (int i = 0; i < gridSize; i++) {
-            for (int j = gridSize - 1; j >= 0; j--) {
+        for (int i = 0; i < Config.gridSize; i++) {
+            for (int j = Config.gridSize - 1; j >= 0; j--) {
                 if (result.reels.get(i).get(j).isDetonated) {
                     result.reels.get(i).remove(j);
                 }
@@ -314,8 +341,8 @@ public class Main {
         }
 
         // 2. Cascade
-        for (int i = 0; i < gridSize; i++) {
-            while (result.reels.get(i).size() < gridSize) {
+        for (int i = 0; i < Config.gridSize; i++) {
+            while (result.reels.get(i).size() < Config.gridSize) {
                 result.stopIndex[i]--;
                 int symbol;
                 if (Objects.equals(result.category, "Ng")) {
@@ -347,14 +374,17 @@ public class Main {
     } // Checked
 
     private static void calcPrize(Result result, ArrayList<Prize> prizeList) {
-        for (int i = 0; i < gridSize; i++) {
-            for (int j = 0; j < gridSize; j++) {
+        for (int i = 0; i < Config.gridSize; i++) {
+            for (int j = 0; j < Config.gridSize; j++) {
                 int symbol = result.reels.get(i).get(j).symbol;
                 if (!result.reels.get(i).get(j).used && symbol != 0 && symbol != Config.space && symbol != Config.SC) {
                     Prize prize = new Prize();
                     prize.symbol = symbol;
                     prize.position.add(new Coordinate(i, j));
                     prize.link = walk(i, j, prize, result.reels);
+                    if (prize.link == 4) {
+                        result.nearlyWin = true;
+                    }
                     if (prize.link >= Config.minLinkRequirement) {
                         prizeList.add(prize);
                     }
@@ -376,8 +406,8 @@ public class Main {
             int x = position.get(i).x;
             int y = position.get(i).y;
             if (gridMulti[x][y] > 0) {
-                if (gridMulti[x][y] * 2 >= singleGridMaxMulti) {
-                    result += singleGridMaxMulti;
+                if (gridMulti[x][y] * 2 >= Config.singleGridMaxMulti) {
+                    result += Config.singleGridMaxMulti;
                 } else {
                     result += gridMulti[x][y] * 2;
                 }
@@ -422,8 +452,9 @@ public class Main {
         System.out.println("NG Cascade ratio: " + stat.ngCascadeFreq / stat.ngHitFreq);
         System.out.println("FG Cascade ratio: " + stat.fgCascadeFreq / stat.fgHitFreq);
         System.out.println("Max win: " + stat.maxWin);
-        System.out.println("cash out freq: " + totalRounds/cashOutFreq);
+        System.out.println("cash out freq: " + totalRounds / cashOutFreq);
         System.out.println("Standard dev.: " + pow(stat.MSE / totalRounds, 0.5));
+        System.out.println("Nearly Win Rate: " + nearlyWinFreq / ngNoWinFreq);
         System.out.println("---Ng Rage Meter Dist.---");
         for (int i = 0; i < stat.ngRageMeterFreq.length; i++) {
             System.out.print("Feature " + i + ": ");
@@ -473,7 +504,7 @@ public class Main {
     } // Checked
 
     public static boolean checkPositionLegit(int i, int j) {
-        return i >= 0 && j >= 0 && i < gridSize && j < gridSize;
+        return i >= 0 && j >= 0 && i < Config.gridSize && j < Config.gridSize;
     } // Checked
 
     private static void logPrize(double winMulti, double[] prizeDist) {
@@ -495,16 +526,24 @@ public class Main {
             prizeDist[7]++;
         } else if (winMulti >= 500 && winMulti < 1000) {
             prizeDist[8]++;
-        } else if (winMulti >= 1000) {
+        } else if (winMulti >= 1000 &&  winMulti < 5000) {
             prizeDist[9]++;
+        } else if (winMulti >= 5000 &&  winMulti < 10000) {
+            prizeDist[10]++;
+        } else if (winMulti >= 10000 &&  winMulti < 20000) {
+            prizeDist[11]++;
+        } else if (winMulti >= 20000 &&  winMulti < 50000) {
+            prizeDist[12]++;
+        } else if (winMulti >= 50000) {
+            prizeDist[13]++;
         }
     } // Checked
 
     public static void genGrid(int[][] reelSet, Result result) {
-        for (int i = 0; i < gridSize; i++) {
+        for (int i = 0; i < Config.gridSize; i++) {
             result.stopIndex[i] = (int) (Math.random() * reelSet[i].length);
             result.reels.add(new ArrayList<>());
-            for (int j = 0; j < gridSize; j++) {
+            for (int j = 0; j < Config.gridSize; j++) {
                 int symbol = reelSet[i][(result.stopIndex[i] + j) % reelSet[i].length];
                 result.reels.get(i).add(new Grid(symbol));
             }
@@ -538,8 +577,8 @@ public class Main {
     }
 
     private static void printGrid(ArrayList<ArrayList<Grid>> grid) {
-        for (int i = 0; i < gridSize; i++) {
-            for (int j = 0; j < gridSize; j++) {
+        for (int i = 0; i < Config.gridSize; i++) {
+            for (int j = 0; j < Config.gridSize; j++) {
                 System.out.print(grid.get(i).get(j).symbol + " ");
             }
             System.out.println();

@@ -5,6 +5,7 @@ import java.util.Queue;
 public class Result {
     // Fg Keep the info until the Fg end
     String category;
+    int rageMeterLevel = 0;
     int rageCounter = 0;
     int[][] gridMulti= new int[][]{};
     boolean[] featureTriggered = new boolean[]{false, false, false, false};
@@ -12,6 +13,7 @@ public class Result {
     Queue<Integer> featureQueue = new ArrayDeque<>();
 
 
+    boolean nearlyWin = false;
 
     // Fg Update Every Round
     int reelSetIndex;

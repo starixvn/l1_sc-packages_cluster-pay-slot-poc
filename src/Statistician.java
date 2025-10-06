@@ -11,8 +11,8 @@ public class Statistician {
     public double ngCascadeFreq;
     public double fgCascadeFreq;
     public double maxWin;
-    public double[] ngPrizeDist = new double[10];
-    public double[] fgPrizeDist = new double[10];
+    public double[] ngPrizeDist = new double[14];
+    public double[] fgPrizeDist = new double[14];
     public double[] ngRageMeterFreq;
     public double[] fgRageMeterFreq;
 
