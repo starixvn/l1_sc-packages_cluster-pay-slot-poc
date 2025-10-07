@@ -23,7 +23,21 @@ public class Config {
     // space is 8, Scatter is 9
     public static int[] fgRoundsArray = new int[]{0, 0, 0, 10, 15, 20, 25};
 
+
+    public static int[] phase4replaceSymbol = new int[]{1, 2, 3, 4,};
+    public static double[] phase4replaceSymbolWeight = new double[]{10, 12, 14, 15};
+    public static double phase4replaceSymbolWeightSum = sumArray(phase4replaceSymbolWeight);
+
+
+
     public static int minLinkRequirement = 5;
 
 
+    static double sumArray(double[] weight) {
+        double total = 0;
+        for (double v : weight) {
+            total += v;
+        }
+        return total;
+    }
 }

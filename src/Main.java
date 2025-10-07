@@ -130,12 +130,9 @@ public class Main {
                 }
                 logPrize(fgWin, stat.fgPrizeDist);
             }
-
-
             if (ngResult.winScore > Config.maxSingleRoundsPayout) {
                 ngResult.winScore = Config.maxSingleRoundsPayout;
             }
-
             // Round end
 
             if (ngResult.winScore + fgWin > 0) {
@@ -225,16 +222,16 @@ public class Main {
         } else if (Objects.equals(result.category, "Fg")) {
             stat.fgRageMeterFreq[3]++;
         }
-        // 去除小symbol
+        // replace small symbols
         for (int i = 0; i < Config.gridSize; i++) {
             for (int j = 0; j < Config.gridSize; j++) {
                 if (result.reels.get(i).get(j).symbol >= 5 && result.reels.get(i).get(j).symbol <= 8) {
-                    result.reels.get(i).get(j).isDetonated = true;
-                    result.gridMulti[i][j]++;
+                    result.reels.get(i).get(j).symbol = (int) genSymbolByWeights(Config.phase4replaceSymbol, Config.phase4replaceSymbolWeightSum, Config.phase4replaceSymbolWeight);
+//                    result.gridMulti[i][j]++;
                 }
             }
         }
-        detonateAndCascadeGrid(result);
+//        detonateAndCascadeGrid(result);
     } // Checked
 
     private static void processStage2(Result result) {
@@ -293,7 +290,7 @@ public class Main {
         for (int i = 0; i < 6; i++) {
             int x = random.nextInt(Config.gridSize);
             int y = random.nextInt(Config.gridSize);
-            while (result.reels.get(x).get(y).symbol == Config.SC) {
+            while (result.reels.get(x).get(y).symbol == Config.SC || result.reels.get(x).get(y).isDetonated) {
                 x = random.nextInt(Config.gridSize);
                 y = random.nextInt(Config.gridSize);
             }
