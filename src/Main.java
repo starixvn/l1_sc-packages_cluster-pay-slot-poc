@@ -7,7 +7,7 @@ import static java.lang.Math.pow;
 
 
 public class Main {
-    public static int totalRounds = 10_000_000;
+    public static int totalRounds = 100_000_000;
     public static double theoreticalRTP = 0.97;
     public static double wallet = 100;
     public static double cashOutFreq = 0;
@@ -73,26 +73,19 @@ public class Main {
             FgResult fgResult = new FgResult();
             fgResult.category = "Fg";
             int fgRounds = Config.fgRoundsArray[currScNumber];
-            if (fgRounds > 0) {
+            if (fgRounds > 0 && ngResult.winScore < Config.maxSingleRoundsPayout) {
                 stat.fgTriggerFreq++;
                 fgResult.gridMulti = iniGridMulti();
-                while (fgRounds > 0) {
+                while (fgRounds > 0 && fgWin + ngResult.winScore < Config.maxSingleRoundsPayout) {
                     fgResult.reels.clear();
                     fgResult.reelSetIndex = (int) genSymbolByWeights(FgReels.reelsIndex, FgReels.weightSum, FgReels.weight);
                     genGrid(FgReels.reels[fgResult.reelSetIndex], fgResult);
                     prizeList.clear();
                     calcPrize(fgResult, prizeList);
-                    while (prizeList.isEmpty() && !fgResult.featureQueue.isEmpty()) {
-                        // in case the feature is halt last spin because of over 10,000x
-                        // Process Rage Meter
-                        processRageMeter(fgResult);//
-                        renewGrid(fgResult.reels);
-                        calcPrize(fgResult, prizeList);
-                    }
                     fgResult.winScore += calcPayout(prizeList);
                     fgResult.rageCounter += calcRageMeter(prizeList);
                     updateFgFeatureTrigger(fgResult);
-                    while (!prizeList.isEmpty() && fgResult.winScore < Config.maxSingleRoundsPayout) {
+                    while (!prizeList.isEmpty() && fgWin + fgResult.winScore + ngResult.winScore < Config.maxSingleRoundsPayout) {
                         stat.fgCascadeFreq++;
                         markDetonated(fgResult, prizeList);
                         detonateAndCascadeGrid(fgResult);
@@ -110,10 +103,6 @@ public class Main {
                         updateFgFeatureTrigger(fgResult);
                     }
 
-                    if (fgResult.winScore > Config.maxSingleRoundsPayout) {
-                        fgResult.winScore = Config.maxSingleRoundsPayout;
-                    }
-
                     if (fgResult.winScore > 0) {
                         stat.fgHitFreq++;
                         fgWin += fgResult.winScore;
@@ -128,10 +117,11 @@ public class Main {
                     fgRounds += Config.fgRoundsArray[currScNumber];
                     fgRounds--;
                 }
+                // adjust win if over max
+                if (ngResult.winScore + fgWin > Config.maxSingleRoundsPayout) {
+                    fgWin = Config.maxSingleRoundsPayout - ngResult.winScore;
+                }
                 logPrize(fgWin, stat.fgPrizeDist);
-            }
-            if (ngResult.winScore > Config.maxSingleRoundsPayout) {
-                ngResult.winScore = Config.maxSingleRoundsPayout;
             }
             // Round end
 
@@ -139,9 +129,8 @@ public class Main {
                 stat.hitFreq++;
             }
 
-            // Log Ng Win
+            // Log Win
             logPrize(ngResult.winScore + fgWin, stat.ngPrizeDist);
-
             stat.ngTotalWin += ngResult.winScore;
             stat.fgTotalWin += fgWin;
             stat.totalWin += (ngResult.winScore + fgWin);
@@ -170,10 +159,10 @@ public class Main {
     } // Checked
 
     private static void updateNgFeatureTrigger(Result result) {
-        while(result.rageMeterLevel < 4 && result.rageCounter >= Config.featureRageMeterRequire[result.rageMeterLevel]){
+        while (result.rageMeterLevel < 4 && result.rageCounter >= Config.featureRageMeterRequire[result.rageMeterLevel]) {
             result.featureQueue.offer(result.rageMeterLevel);
             result.rageMeterLevel++;
-            if(result.rageMeterLevel == 4){
+            if (result.rageMeterLevel == 4) {
                 break;
             }
         }
@@ -181,22 +170,22 @@ public class Main {
     } // Checked
 
     private static void updateFgFeatureTrigger(Result result) {
-        while(result.rageCounter >= Config.featureRageMeterRequire[result.rageMeterLevel]){
+        while (result.rageCounter >= Config.featureRageMeterRequire[result.rageMeterLevel]) {
             result.featureQueue.offer(result.rageMeterLevel);
             result.rageMeterLevel++;
-            if(result.rageMeterLevel == 4){
+            if (result.rageMeterLevel == 4) {
                 break;
             }
         }
 
         // Reset
-        if(result.rageMeterLevel == 4){
+        if (result.rageMeterLevel == 4) {
             result.rageCounter -= Config.featureRageMeterRequire[3];
             result.rageMeterLevel = 0;
-            while(result.rageCounter >= Config.featureRageMeterRequire[result.rageMeterLevel]){
+            while (result.rageCounter >= Config.featureRageMeterRequire[result.rageMeterLevel]) {
                 result.featureQueue.offer(result.rageMeterLevel);
                 result.rageMeterLevel++;
-                // rageMeter increase max 36 per spin, impossible to reach 80/80 twice.
+                // rageMeter increase max 36 per spin, impossible to reach 60/60 twice.
             }
         }
     } // Checked
@@ -454,21 +443,21 @@ public class Main {
         System.out.println("Nearly Win Rate: " + nearlyWinFreq / ngNoWinFreq);
         System.out.println("---Ng Rage Meter Dist.---");
         for (int i = 0; i < stat.ngRageMeterFreq.length; i++) {
-            System.out.print("Feature " + i + ": ");
+            System.out.print("Feature " + i + ": " + '\t');
             System.out.println(stat.ngRageMeterFreq[i] / totalRounds);
         }
         System.out.println("---Fg Rage Meter Dist.---");
         for (int i = 0; i < stat.fgRageMeterFreq.length; i++) {
-            System.out.print("Feature " + i + ": ");
+            System.out.print("Feature " + i + ": " + '\t');
             System.out.println(stat.fgRageMeterFreq[i] / stat.fgTriggerFreq);
         }
-        System.out.println("---Base Game Dist.---");
+        System.out.println("---Overall Dist.---");
         for (int i = 0; i < stat.ngPrizeDist.length; i++) {
-            System.out.println(stat.ngPrizeDist[i]);
+            System.out.println(stat.ngPrizeDist[i] / totalRounds);
         }
         System.out.println("---Free Game Dist.---");
         for (int i = 0; i < stat.fgPrizeDist.length; i++) {
-            System.out.println(stat.fgPrizeDist[i]);
+            System.out.println(stat.fgPrizeDist[i] / stat.fgTriggerFreq);
         }
     } // Checked
 
@@ -523,13 +512,13 @@ public class Main {
             prizeDist[7]++;
         } else if (winMulti >= 500 && winMulti < 1000) {
             prizeDist[8]++;
-        } else if (winMulti >= 1000 &&  winMulti < 5000) {
+        } else if (winMulti >= 1000 && winMulti < 5000) {
             prizeDist[9]++;
-        } else if (winMulti >= 5000 &&  winMulti < 10000) {
+        } else if (winMulti >= 5000 && winMulti < 10000) {
             prizeDist[10]++;
-        } else if (winMulti >= 10000 &&  winMulti < 20000) {
+        } else if (winMulti >= 10000 && winMulti < 20000) {
             prizeDist[11]++;
-        } else if (winMulti >= 20000 &&  winMulti < 50000) {
+        } else if (winMulti >= 20000 && winMulti < 50000) {
             prizeDist[12]++;
         } else if (winMulti >= 50000) {
             prizeDist[13]++;
