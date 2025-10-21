@@ -7,7 +7,7 @@ import static java.lang.Math.pow;
 
 
 public class Main {
-    public static int totalRounds = 100_000_000;
+    public static int totalRounds = 20_000_000;
     public static double theoreticalRTP = 0.97;
     public static double wallet = 100;
     public static double cashOutFreq = 0;
@@ -16,6 +16,7 @@ public class Main {
     public static int currScNumber;
     public static double nearlyWinFreq = 0;
     public static double ngNoWinFreq = 0;
+    public static double mode = 2;
 
     public static void main(String[] args) {
         stat = new Statistician();
@@ -23,8 +24,16 @@ public class Main {
             wallet--;
             NgResult ngResult = new NgResult();
             ngResult.category = "Ng";
-            ngResult.reelSetIndex = (int) genSymbolByWeights(NgReels.reelsIndex, NgReels.weightSum, NgReels.weight);
-            genGrid(NgReels.reels[ngResult.reelSetIndex], ngResult);
+
+            if (mode > 0) {// Buy Feature
+                ngResult.reelSetIndex = 0;
+                genGrid(NgReels.reels[ngResult.reelSetIndex], ngResult);
+                insertSC(ngResult);
+            } else {
+                ngResult.reelSetIndex = (int) genSymbolByWeights(NgReels.reelsIndex, NgReels.weight, NgReels.weightSum);
+                genGrid(NgReels.reels[ngResult.reelSetIndex], ngResult);
+            }
+
             ngResult.gridMulti = iniGridMulti();
             //            printGrid(ngResult.reels);
             ArrayList<Prize> prizeList = new ArrayList<>();
@@ -39,7 +48,7 @@ public class Main {
             if (ngResult.nearlyWin && prizeList.isEmpty()) {
                 nearlyWinFreq++;
             }
-            while (!prizeList.isEmpty() && ngResult.winScore < Config.maxSingleRoundsPayout) {
+            while (!prizeList.isEmpty() && ngResult.winScore < Config.maxPayout) {
                 stat.ngCascadeFreq++;
                 markDetonated(ngResult, prizeList);
                 detonateAndCascadeGrid(ngResult);
@@ -64,8 +73,8 @@ public class Main {
             if (ngResult.winScore > 0) {
                 stat.ngHitFreq++;
             }
-            if (ngResult.winScore > Config.maxSingleRoundsPayout) {
-                ngResult.winScore = Config.maxSingleRoundsPayout;
+            if (ngResult.winScore > Config.maxPayout) {
+                ngResult.winScore = Config.maxPayout;
             }
 
             // FG
@@ -73,19 +82,25 @@ public class Main {
             FgResult fgResult = new FgResult();
             fgResult.category = "Fg";
             int fgRounds = Config.fgRoundsArray[currScNumber];
-            if (fgRounds > 0 && ngResult.winScore < Config.maxSingleRoundsPayout) {
+            if (fgRounds > 0 && ngResult.winScore < Config.maxPayout) {
                 stat.fgTriggerFreq++;
-                fgResult.gridMulti = iniGridMulti();
-                while (fgRounds > 0 && fgWin + ngResult.winScore < Config.maxSingleRoundsPayout) {
+                if(mode == 2){ // buy super
+                    fgResult.gridMulti = iniSuperGridMulti();
+                } else {
+                    fgResult.gridMulti = iniGridMulti();
+                }
+
+                while (fgRounds > 0 && fgWin + ngResult.winScore < Config.maxPayout) {
+                    stat.fgTotalRounds++;
                     fgResult.reels.clear();
-                    fgResult.reelSetIndex = (int) genSymbolByWeights(FgReels.reelsIndex, FgReels.weightSum, FgReels.weight);
+                    fgResult.reelSetIndex = (int) genSymbolByWeights(FgReels.reelsIndex, FgReels.weight, FgReels.weightSum);
                     genGrid(FgReels.reels[fgResult.reelSetIndex], fgResult);
                     prizeList.clear();
                     calcPrize(fgResult, prizeList);
                     fgResult.winScore += calcPayout(prizeList);
                     fgResult.rageCounter += calcRageMeter(prizeList);
                     updateFgFeatureTrigger(fgResult);
-                    while (!prizeList.isEmpty() && fgWin + fgResult.winScore + ngResult.winScore < Config.maxSingleRoundsPayout) {
+                    while (!prizeList.isEmpty() && fgWin + fgResult.winScore + ngResult.winScore < Config.maxPayout) {
                         stat.fgCascadeFreq++;
                         markDetonated(fgResult, prizeList);
                         detonateAndCascadeGrid(fgResult);
@@ -118,8 +133,8 @@ public class Main {
                     fgRounds--;
                 }
                 // adjust win if over max
-                if (ngResult.winScore + fgWin > Config.maxSingleRoundsPayout) {
-                    fgWin = Config.maxSingleRoundsPayout - ngResult.winScore;
+                if (ngResult.winScore + fgWin > Config.maxPayout) {
+                    fgWin = Config.maxPayout - ngResult.winScore;
                 }
                 logPrize(fgWin, stat.fgPrizeDist);
             }
@@ -144,6 +159,22 @@ public class Main {
 
         // Simulation end
         printResult();
+    }
+
+    private static void insertSC(NgResult ngResult) {
+        Random random = new Random();
+        int currSC = countSC(ngResult.reels);
+        int targetSC = (int) genSymbolByWeights(Config.buyFeatureSCNum, Config.buyFeatureSCNumWeight, Config.buyFeatureSCNumWeightSum);
+        while (currSC < targetSC) {
+            int randColIndex = random.nextInt(6);
+            int randRowIndex = random.nextInt(5);
+            while (ngResult.reels.get(randColIndex).get(randRowIndex).symbol == Config.SC) {
+                randColIndex = random.nextInt(6);
+                randRowIndex = random.nextInt(5);
+            }
+            ngResult.reels.get(randColIndex).get(randRowIndex).symbol = Config.SC;
+            currSC++;
+        }
     }
 
     private static int countSC(ArrayList<ArrayList<Grid>> reels) {
@@ -215,7 +246,7 @@ public class Main {
         for (int i = 0; i < Config.gridSize; i++) {
             for (int j = 0; j < Config.gridSize; j++) {
                 if (result.reels.get(i).get(j).symbol >= 5 && result.reels.get(i).get(j).symbol <= 8) {
-                    result.reels.get(i).get(j).symbol = (int) genSymbolByWeights(Config.phase4replaceSymbol, Config.phase4replaceSymbolWeightSum, Config.phase4replaceSymbolWeight);
+                    result.reels.get(i).get(j).symbol = (int) genSymbolByWeights(Config.phase4replaceSymbol, Config.phase4replaceSymbolWeight, Config.phase4replaceSymbolWeightSum);
 //                    result.gridMulti[i][j]++;
                 }
             }
@@ -261,8 +292,8 @@ public class Main {
         for (int i = x; i < x + 3; i++) {
             for (int j = y; j < y + 3; j++) {
                 result.gridMulti[x][y]++;
-                if (result.reels.get(x).get(y).symbol != Config.SC) {
-                    result.reels.get(x).get(y).isDetonated = true;
+                if (result.reels.get(i).get(j).symbol != Config.SC) {
+                    result.reels.get(i).get(j).isDetonated = true;
                 }
             }
         }
@@ -359,6 +390,17 @@ public class Main {
         };
     } // Checked
 
+    private static int[][] iniSuperGridMulti() {
+        return new int[][]{
+                {1, 1, 1, 1, 1, 1},
+                {1, 1, 1, 1, 1, 1},
+                {1, 1, 1, 1, 1, 1},
+                {1, 1, 1, 1, 1, 1},
+                {1, 1, 1, 1, 1, 1},
+                {1, 1, 1, 1, 1, 1},
+        };
+    } // Checked
+
     private static void calcPrize(Result result, ArrayList<Prize> prizeList) {
         for (int i = 0; i < Config.gridSize; i++) {
             for (int j = 0; j < Config.gridSize; j++) {
@@ -392,7 +434,7 @@ public class Main {
             int x = position.get(i).x;
             int y = position.get(i).y;
             if (gridMulti[x][y] > 0) {
-                if (gridMulti[x][y] * 2 >= Config.singleGridMaxMulti) {
+                if (gridMulti[x][y] * 2 > Config.singleGridMaxMulti) {
                     result += Config.singleGridMaxMulti;
                 } else {
                     result += gridMulti[x][y] * 2;
@@ -435,6 +477,7 @@ public class Main {
         System.out.println("FG trigger rate: " + stat.fgTriggerFreq / totalRounds);
         System.out.println("FG Freq: " + totalRounds / stat.fgTriggerFreq);
         System.out.println("FG Multi: " + stat.fgTotalWin / stat.fgTriggerFreq);
+        System.out.println("FG Avg Rounds: " + stat.fgTotalRounds / stat.fgTriggerFreq);
         System.out.println("NG Cascade ratio: " + stat.ngCascadeFreq / stat.ngHitFreq);
         System.out.println("FG Cascade ratio: " + stat.fgCascadeFreq / stat.fgHitFreq);
         System.out.println("Max win: " + stat.maxWin);
@@ -536,7 +579,7 @@ public class Main {
         }
     } // Checked
 
-    private static double genSymbolByWeights(int[] arr, double sumWeight, double[] weights) {
+    private static double genSymbolByWeights(int[] arr, double[] weights, double sumWeight) {
         double rand = Math.random();
         double accWeight = weights[0];
         for (int i = 0; i < weights.length; i++) {

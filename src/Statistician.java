@@ -6,6 +6,7 @@ public class Statistician {
     public double ngHitFreq;
     public double fgHitFreq;
     public double fgTotalWin;
+    public double fgTotalRounds;
     public double fgTriggerFreq;
     public double MSE;
     public double ngCascadeFreq;
@@ -24,6 +25,7 @@ public class Statistician {
         this.ngCascadeFreq = 0;
         this.fgCascadeFreq = 0;
         this.fgTotalWin = 0;
+        this.fgTotalRounds = 0;
         this.fgTriggerFreq = 0;
         this.MSE = 0;
         this.maxWin = 0;
