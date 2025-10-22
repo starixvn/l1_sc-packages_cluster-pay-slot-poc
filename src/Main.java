@@ -7,7 +7,7 @@ import static java.lang.Math.pow;
 
 
 public class Main {
-    public static int totalRounds = 20_000_000;
+    public static int totalRounds = 20_00_000;
     public static double theoreticalRTP = 0.97;
     public static double wallet = 100;
     public static double cashOutFreq = 0;
@@ -26,8 +26,8 @@ public class Main {
             ngResult.category = "Ng";
 
             if (mode > 0) {// Buy Feature
-                ngResult.reelSetIndex = 0;
-                genGrid(NgReels.reels[ngResult.reelSetIndex], ngResult);
+                ngResult.reelSetIndex = (int) genSymbolByWeights(BuyFeatureReels.reelsIndex, BuyFeatureReels.weight, BuyFeatureReels.weightSum);
+                genGrid(BuyFeatureReels.reels[ngResult.reelSetIndex], ngResult);
                 insertSC(ngResult);
             } else {
                 ngResult.reelSetIndex = (int) genSymbolByWeights(NgReels.reelsIndex, NgReels.weight, NgReels.weightSum);
@@ -291,7 +291,7 @@ public class Main {
         int y = random.nextInt(Config.gridSize - 2);
         for (int i = x; i < x + 3; i++) {
             for (int j = y; j < y + 3; j++) {
-                result.gridMulti[x][y]++;
+                result.gridMulti[i][j]++; // Correct, Thanks!
                 if (result.reels.get(i).get(j).symbol != Config.SC) {
                     result.reels.get(i).get(j).isDetonated = true;
                 }
@@ -469,21 +469,22 @@ public class Main {
     } // Checked
 
     private static void printResult() {
-        System.out.println("Total RTP: " + stat.totalWin / totalRounds);
-        System.out.println("NG RTP: " + stat.ngTotalWin / totalRounds);
-        System.out.println("FG RTP: " + stat.fgTotalWin / totalRounds);
-        System.out.println("NG hit rate: " + stat.ngHitFreq / totalRounds);
-        System.out.println("hit rate: " + stat.hitFreq / totalRounds);
-        System.out.println("FG trigger rate: " + stat.fgTriggerFreq / totalRounds);
-        System.out.println("FG Freq: " + totalRounds / stat.fgTriggerFreq);
-        System.out.println("FG Multi: " + stat.fgTotalWin / stat.fgTriggerFreq);
-        System.out.println("FG Avg Rounds: " + stat.fgTotalRounds / stat.fgTriggerFreq);
-        System.out.println("NG Cascade ratio: " + stat.ngCascadeFreq / stat.ngHitFreq);
-        System.out.println("FG Cascade ratio: " + stat.fgCascadeFreq / stat.fgHitFreq);
-        System.out.println("Max win: " + stat.maxWin);
-        System.out.println("cash out freq: " + totalRounds / cashOutFreq);
-        System.out.println("Standard dev.: " + pow(stat.MSE / totalRounds, 0.5));
-        System.out.println("Nearly Win Rate: " + nearlyWinFreq / ngNoWinFreq);
+        System.out.println("Total RTP:" + '\t' + stat.totalWin / totalRounds);
+        System.out.println("NG RTP:" + '\t' + stat.ngTotalWin / totalRounds);
+        System.out.println("FG RTP:" + '\t' + stat.fgTotalWin / totalRounds);
+        System.out.println("NG hit rate:" + '\t' + stat.ngHitFreq / totalRounds);
+        System.out.println("hit rate:" + '\t' + stat.hitFreq / totalRounds);
+        System.out.println("FG trigger rate:" + '\t' + stat.fgTriggerFreq / totalRounds);
+        System.out.println("FG Freq:" + '\t' + totalRounds / stat.fgTriggerFreq);
+        System.out.println("FG Hit rate:" + '\t' + stat.fgHitFreq /  stat.fgTotalRounds);
+        System.out.println("FG Multi:" + '\t' + stat.fgTotalWin / stat.fgTriggerFreq);
+        System.out.println("FG Avg Rounds:" + '\t' + stat.fgTotalRounds / stat.fgTriggerFreq);
+        System.out.println("NG Cascade ratio:" + '\t' + stat.ngCascadeFreq / stat.ngHitFreq);
+        System.out.println("FG Cascade ratio:" + '\t' + stat.fgCascadeFreq / stat.fgHitFreq);
+        System.out.println("Max win:" + '\t' + stat.maxWin);
+        System.out.println("cash out freq:" + '\t' + totalRounds / cashOutFreq);
+        System.out.println("Standard dev.:" + '\t' + pow(stat.MSE / totalRounds, 0.5));
+        System.out.println("Nearly Win Rate:" + '\t' + nearlyWinFreq / ngNoWinFreq);
         System.out.println("---Ng Rage Meter Dist.---");
         for (int i = 0; i < stat.ngRageMeterFreq.length; i++) {
             System.out.print("Feature " + i + ": " + '\t');

@@ -22,6 +22,7 @@ public class Statistician {
         this.ngTotalWin = 0;
         this.hitFreq = 0;
         this.ngHitFreq = 0;
+        this.fgHitFreq = 0;
         this.ngCascadeFreq = 0;
         this.fgCascadeFreq = 0;
         this.fgTotalWin = 0;
