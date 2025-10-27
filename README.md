@@ -107,6 +107,8 @@ The exporter will create three JSON files in the project root:
 
 3. **`fg_reels.json`** - Free game reels data
 
+4. **`buy_reels.json`** - Buy Free Spin game reels data
+
 ## Troubleshooting
 
 ### Common Issues

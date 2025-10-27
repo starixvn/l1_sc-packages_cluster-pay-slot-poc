@@ -123,6 +123,7 @@ public class ConfigExporter {
         
         exportReelsJson("ng_reels.json", NgReels.reels);
         exportReelsJson("fg_reels.json", FgReels.reels);
+        exportReelsJson("buy_reels.json", BuyFeatureReels.reels);
         
         System.out.println();
         System.out.println("Export completed! Check the generated JSON files.");
