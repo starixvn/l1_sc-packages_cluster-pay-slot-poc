@@ -1,93 +1,165 @@
-# Cluster Pay Slot Poc
+# How to Run the Slot Machine Configuration Exporter
 
+This guide will help you set up and run the `ConfigExporter` class to export slot machine configuration data to JSON files.
 
+## Prerequisites
 
-## Getting started
+### 1. Install Java Development Kit (JDK)
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+**For Windows:**
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- Download JDK 8 or higher from [Oracle](https://www.oracle.com/java/technologies/downloads/) or [OpenJDK](https://adoptium.net/)
+- Install and set up JAVA_HOME environment variable
+- Add Java to your PATH
 
-## Add your files
+**For macOS:**
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+```bash
+# Using Homebrew
+brew install openjdk@8
 
+# Or download from Oracle/OpenJDK website
 ```
-cd existing_repo
-git remote add origin https://git3.nexdev.net/l1/sc-packages/cluster-pay-slot-poc.git
-git branch -M main
-git push -uf origin main
+
+**For Linux (Ubuntu/Debian):**
+
+```bash
+sudo apt update
+sudo apt install openjdk-8-jdk
 ```
 
-## Integrate with your tools
+**Verify Java installation:**
 
-- [ ] [Set up project integrations](https://git3.nexdev.net/l1/sc-packages/cluster-pay-slot-poc/-/settings/integrations)
+```bash
+java -version
+javac -version
+```
 
-## Collaborate with your team
+### 2. Install Apache Maven
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+**For Windows:**
 
-## Test and Deploy
+- Download Maven from [Apache Maven website](https://maven.apache.org/download.cgi)
+- Extract to a folder (e.g., `C:\Program Files\Apache\maven`)
+- Add Maven bin directory to your PATH
+- Set M2_HOME environment variable
 
-Use the built-in continuous integration in GitLab.
+**For macOS:**
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+```bash
+# Using Homebrew
+brew install maven
+```
 
-***
+**For Linux (Ubuntu/Debian):**
 
-# Editing this README
+```bash
+sudo apt update
+sudo apt install maven
+```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+**Verify Maven installation:**
 
-## Suggestions for a good README
+```bash
+mvn -version
+```
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+## Project Setup
 
-## Name
-Choose a self-explaining name for your project.
+### 1. Clone or Download the Project
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+```bash
+git clone <repository-url>
+cd cluster-pay-slot-poc
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+### 2. Verify Project Structure
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+Ensure you have the following files:
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+- `pom.xml` - Maven configuration
+- `src/ConfigExporterJackson.java` - Main export class
+- `src/Config.java` - Configuration data
+- Other Java source files
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## Running the Configuration Exporter
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### Method 1: Using Maven (Recommended)
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+This is the simplest method as the project is already configured with the exec-maven-plugin:
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+```bash
+mvn exec:java -D exec.args="20"
+```
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+> _Note_: first argument (20) is multiplier for odd.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### Method 2: Using Maven with Compilation
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+If you want to ensure everything is compiled first:
 
-## License
-For open source projects, say how it is licensed.
+```bash
+mvn compile exec:java -D exec.args="20"
+```
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+## Generated Files
+
+The exporter will create three JSON files in the project root:
+
+1. **`configs.json`** - Main configuration file containing:
+
+   - Odds configuration
+   - Free game rounds configuration
+   - Rage meter configuration
+
+2. **`ng_reels.json`** - Normal game reels data
+
+3. **`fg_reels.json`** - Free game reels data
+
+## Troubleshooting
+
+### Common Issues
+
+**1. "mvn: command not found"**
+
+- Ensure Maven is installed and added to your PATH
+- Restart your terminal/command prompt after installation
+
+**2. "java: command not found"**
+
+- Ensure Java JDK is installed and added to your PATH
+- Verify JAVA_HOME is set correctly
+
+**3. "NoClassDefFoundError: com/fasterxml/jackson/databind/JsonNode"**
+
+- Run `mvn dependency:copy-dependencies` first
+- Or use `mvn exec:java` instead
+
+**4. Compilation errors**
+
+- Ensure you're using JDK 8 or higher
+- Run `mvn clean compile` to clean and recompile
+
+**5. Permission denied (Linux/macOS)**
+
+- Ensure the project directory has proper read/write permissions
+- Use `chmod` if necessary
+
+### Getting Help
+
+If you encounter issues:
+
+1. Check that Java and Maven are properly installed
+2. Verify you're in the correct project directory
+3. Try running `mvn clean compile` first
+4. Check the console output for specific error messages
+
+## Project Dependencies
+
+The project uses the following dependencies (automatically managed by Maven):
+
+- Jackson Core 2.15.2
+- Jackson Databind 2.15.2
+- Jackson Annotations 2.15.2
+
+These are defined in `pom.xml` and will be downloaded automatically when you run Maven commands.
