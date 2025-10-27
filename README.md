@@ -69,18 +69,9 @@ mvn -version
 ### 1. Clone or Download the Project
 
 ```bash
-git clone <repository-url>
+git clone git@git3.nexdev.net:l1/sc-packages/cluster-pay-slot-poc.git --branch GL-2658-export-reel-settings
 cd cluster-pay-slot-poc
 ```
-
-### 2. Verify Project Structure
-
-Ensure you have the following files:
-
-- `pom.xml` - Maven configuration
-- `src/ConfigExporterJackson.java` - Main export class
-- `src/Config.java` - Configuration data
-- Other Java source files
 
 ## Running the Configuration Exporter
 
